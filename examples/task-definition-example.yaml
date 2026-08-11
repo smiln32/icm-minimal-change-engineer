@@ -1,0 +1,32 @@
+# Example ICM task definition with declared change surface.
+# Consumed by the agent (Stage 2 Task Contract) and by tests/scope_gate.py.
+#
+# FORMAT NOTE: the gate's built-in parser reads only this simple subset —
+# top-level keys, "- item" lists, inline [], quotes, and # comments.
+# Do not use nested maps, multi-line values, flow sequences, or anchors;
+# keep task files in exactly this shape. Structural mistakes (indented keys,
+# dangling list items) are rejected with exit 3, not guessed at. Paths use
+# forward slashes and exact letter case; an allowed_paths entry of "."
+# grants the whole repository (protected_paths still applies on top).
+#
+# Run the gate:  python3 tests/scope_gate.py --task this-file.yaml --repo .
+
+task: Fix percentage coupons over 50% applying as fixed amounts.
+done_when: test "applies 75% coupon correctly" passes; no other test regresses.
+
+allowed_paths:
+  - src/cart/coupons.js
+  - tests/cart.test.js
+
+protected_paths:
+  - approvals/
+  - governance/
+  - decisions/approved/
+
+# Empty unless this task explicitly authorizes editing a protected artifact.
+# A protected path is modifiable ONLY when listed in BOTH allowed_paths and
+# authorized_protected_paths: allowed_paths alone is not authorization, and
+# authorized_protected_paths alone does not place a path in scope.
+# These declarations come from the governing task artifact; the agent may
+# never write or widen them itself.
+authorized_protected_paths: []
