@@ -1,0 +1,16 @@
+# Governing files this project's agents may inspect but must never edit —
+# converts "do not edit" (instruction-level) into "cannot edit" (mechanical).
+# One entry per line: an exact file path, or a directory path (matches the
+# whole subtree). Blank lines and "#" comments are ignored. Uses the same
+# matching semantics as tests/scope_gate.py (see protect_governing_files.py).
+#
+# This list is independent of any single task's protected_paths/
+# authorized_protected_paths in tasks/*.yaml — those are per-task scope
+# declarations audited at handoff (Stage 7); this file is a standing,
+# task-independent block enforced on every Edit/Write/NotebookEdit call.
+# Edit this file yourself to change what is protected in your project.
+
+CONTEXT.md
+decisions/
+governance/
+specs/

@@ -63,6 +63,8 @@ cp agent/icm-minimal-change-engineer.md .claude/agents/
 
 **Project prerequisites:** the agent works best when your project has a CONTEXT.md (or equivalent), written task definitions, decision records for settled choices, and runnable checks. The less written truth exists, the more often it will legitimately stop.
 
+**Optional — Claude Code mechanical enforcement:** two hooks under `hooks/` move part of the agent spec from instructions the model must comply with to machinery the model cannot influence: `protect_governing_files.py` makes CONTEXT.md/decisions/governance/specs mechanically uneditable (not just "please don't"), and `run_scope_gate_on_stop.py` re-runs the scope gate automatically at handoff instead of trusting the agent to run it. Both are off by default. To enable, merge `hooks/settings.snippet.json` into your project's `.claude/settings.json`, and — for the Stop hook — set `ICM_TASK_FILE` to the active task's YAML path for the session. Details and known limits: `docs/enforcement-roadmap.md`.
+
 ## How do I invoke it?
 
 In Claude Code, address the agent by name for a bounded task:
@@ -104,7 +106,7 @@ The full list is in the agent file under "What This Agent Does NOT Own."
 
 - All instruction-level behavior. The agent specification constrains a model through instructions, and instructions can fail — especially over long sessions and under user pressure. The package reduces scope drift and boundary violations; it does not guarantee scope compliance, does not eliminate hallucinations or coding errors, and makes no security guarantees. `docs/controls.md` states exactly which rules are instruction-level and which are mechanically enforced.
 - What has been tested: package structure (validator, itself negative-tested by `tests/validator_selftest.sh` in a git-clone fixture) and the scope gate (`tests/scope_gate_selftest.sh`, whose header enumerates the full scenario inventory — every code finding from the self-audit and both exercisable coverage gaps). What remains model-dependent: everything the gate does not check — context-first ordering, decision protection, honest reporting, and all other instruction-level controls, pending community behavioral-test results.
-- Remaining mechanical enforcement (read-only governing files, approval-directory write restrictions, task schemas, harness-run checks) — documented in `docs/enforcement-roadmap.md`, deliberately not implemented yet.
+- Remaining mechanical enforcement — documented in `docs/enforcement-roadmap.md`. Read-only governing files and harness-run gate checks are implemented as optional Claude Code hooks (`hooks/`, off by default); approval-directory write restrictions and task schema validation are still deliberately not implemented.
 
 ## Repository structure
 
@@ -130,10 +132,15 @@ icm-minimal-change-engineer/
 ├── examples/
 │   ├── example-use.md             ← end-to-end usage walkthrough
 │   └── task-definition-example.yaml ← task file with allowed/protected paths
+├── hooks/                         ← optional Claude Code mechanical enforcement (off by default)
+│   ├── protect_governing_files.py ← PreToolUse: makes governing files uneditable
+│   ├── protected-paths.txt        ← governing-file list the above hook enforces
+│   ├── run_scope_gate_on_stop.py  ← Stop: runs the scope gate automatically at handoff
+│   └── settings.snippet.json      ← hook config to merge into .claude/settings.json
 └── docs/
     ├── icm-compatibility.md       ← how the agent maps to ICM principles
     ├── controls.md                ← instruction-level vs. mechanically enforced controls
-    ├── enforcement-roadmap.md     ← v0.1 → v0.2 → future enforcement plan
+    ├── enforcement-roadmap.md     ← v0.1 → v0.2 → v0.3 (optional hooks) enforcement plan
     └── self-review.md             ← v0.1 review (historical) + v0.2/v0.2.1 reconciliation addendum
 ```
 
