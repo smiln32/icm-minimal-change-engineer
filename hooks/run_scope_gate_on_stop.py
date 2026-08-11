@@ -23,15 +23,11 @@ YAML path for the current session (mirroring scope_gate.py's own explicit
 --task requirement: no ambient default, no self-authorization). Unset ->
 this hook is a silent no-op, so non-ICM-governed sessions are unaffected.
 
-Runs in scope_gate.py's default mode (working tree + index vs HEAD) unless
-ICM_TASK_BASE_REF is also set, in which case it runs with --base <that
-ref> instead -- set this once you know work was committed mid-task, per
-the agent spec's own Stage 7 instruction that a default-mode PASS after
-committing is no evidence at all. The gate's own report (including its
-"default mode audits uncommitted work only" note, when applicable) is
-always passed through verbatim, on PASS as well as FAIL -- summarizing or
-dropping it here would silently discard the exact caveat this hook exists
-to make impossible to miss.
+Runs in scope_gate.py's default mode (working tree + index vs HEAD). The
+gate's own report -- including its "default mode audits uncommitted work
+only" note -- is passed through verbatim, on PASS as well as FAIL:
+summarizing or dropping it here would silently discard the exact caveat
+this hook exists to make impossible to miss.
 
 On FAIL, blocks the Stop event (decision: "block") and feeds the gate's
 own report back as the reason, so the model must address it or produce an
@@ -97,9 +93,8 @@ def main():
         }))
         return 0
 
-    base_ref = os.environ.get("ICM_TASK_BASE_REF") or None
     try:
-        code, report = gate.run_gate(str(repo_root), task, base=base_ref)
+        code, report = gate.run_gate(str(repo_root), task, base=None)
     except RuntimeError as e:
         print(json.dumps({
             "systemMessage": f"run_scope_gate_on_stop: gate error: {e}",
@@ -108,9 +103,8 @@ def main():
 
     if code == 0:
         # gate passed: clear any prior block-count and let the stop proceed.
-        # `report` is passed through verbatim -- in default mode (no
-        # ICM_TASK_BASE_REF) it carries the "audits uncommitted work only"
-        # note, which is exactly the caveat a bare "PASS" would hide.
+        # `report` is passed through verbatim -- it carries the "audits
+        # uncommitted work only" note, which a bare "PASS" would hide.
         block_count_path(session_id).unlink(missing_ok=True)
         print(json.dumps({
             "systemMessage": f"Automated scope gate (task {task_file}):\n{report}",
