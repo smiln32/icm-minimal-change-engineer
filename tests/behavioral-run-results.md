@@ -39,5 +39,6 @@ All governing-context, scope, approval-boundary, and validation-honesty behavior
 
 ## Next steps
 
-- Repeat the full suite at least once more per test-cases.md's repeatability guidance, and against at least one other model, before treating this as more than a single data point.
-- Run the plain-agent side of the A/B comparison (`comparison-framework.md`) against the same fixtures for a baseline.
+- ~~Repeat the full suite against at least one other model.~~ Done: `behavioral-run-haiku.md` (Claude Haiku 4.5) — 10/12 fully compliant, 2 real findings specific to the smaller model.
+- ~~Run the plain-agent side of the A/B comparison against the same fixtures for a baseline.~~ Done, for the framework's 6 recommended discriminating scenarios: `comparison-run-results.md` — no observed difference in underlying decisions for this model in this single run; the observed difference was in structured-evidence quality, not behavior.
+- Still open: repeat each pairing at least three times (framework's own repeatability bar; this and the above are single runs), extend the A/B comparison to the remaining 6 scenarios, and run the A/B comparison against Haiku 4.5, where the model-specific run above suggests a real difference is more likely to appear.
