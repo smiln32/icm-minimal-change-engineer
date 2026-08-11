@@ -6,7 +6,7 @@ Format follows Keep a Changelog conventions; versioning follows Semantic Version
 ## [Unreleased]
 
 ### Added
-- First recorded T1–T12 behavioral test run (`tests/behavioral-run-results.md`): 11 of 12 runs conclusive and fully compliant; T8's fixture had a design flaw (an unintended public escape hatch) and is recorded as inconclusive rather than papered over.
+- First recorded T1–T12 behavioral test run (`tests/behavioral-run-results.md`): 12 of 12 conclusive and fully compliant. T8's first fixture had a design flaw (an unintended public escape hatch); rebuilt with no allowed-paths-only solution possible and re-run, producing a correct zero-diff `BLOCKED` (S4) report.
 - Optional Claude Code mechanical enforcement under `hooks/`, implementing enforcement-roadmap items 1 and 4 (off by default): `protect_governing_files.py` (PreToolUse) makes CONTEXT.md/decisions/governance/specs mechanically uneditable; `run_scope_gate_on_stop.py` (Stop) re-runs the scope gate automatically at handoff when a session opts in via `ICM_TASK_FILE`. Both reuse `tests/scope_gate.py`'s own path-matching functions rather than duplicating the logic. See `docs/enforcement-roadmap.md` for the design and known limits.
 - `.gitignore` for Python cache artifacts.
 
