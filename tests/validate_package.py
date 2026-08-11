@@ -221,7 +221,7 @@ for rel in ["tests/scope_gate.py", "tests/validate_package.py"]:
 
 # 7b. v0.2.2: packaging hygiene — no unexpected top-level entries, no empty dirs
 EXPECTED_TOP = {"README.md", "LICENSE", "CHANGELOG.md", "PROVENANCE.md",
-                "agent", "icm", "tests", "examples", "docs"}
+                "HANDOFF.md", "agent", "icm", "tests", "examples", "docs"}
 for entry in ROOT.iterdir():
     if entry.name.startswith("."):
         continue  # VCS/editor metadata is out of packaging scope
