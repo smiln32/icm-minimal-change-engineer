@@ -91,3 +91,7 @@ The chat environment's file system resets between sessions: to continue work, up
 
 ---
 *Handoff prepared 2026-08-09. Package verified by triple battery immediately before packaging.*
+
+## Addendum — 2026-08-11
+
+All three of §8's next milestones are done: (1) T1–T12 run against a live model, results in `tests/behavioral-run-results.md` (11/12 conclusive and compliant; T8's fixture is a documented inconclusive, not a pass); (2) and (3) implemented together as optional, off-by-default Claude Code hooks under `hooks/`, documented in `docs/enforcement-roadmap.md`'s new v0.3 section. This note is additive per the project's own addendum-over-rewrite rule (B14) — §8's original text above is left as written.
