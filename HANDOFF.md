@@ -94,6 +94,42 @@ The chat environment's file system resets between sessions: to continue work, up
 
 ## Addendum — 2026-08-11
 
-**Verification is now a four-command battery, not three.** §2's list predates `hooks/`; add `bash tests/hooks_selftest.sh`, which covers both hooks. On Windows, export `PYTHONUTF8=1` first (see the README's testing section) — without it Python's `cp1252` console encoding fails `tests/validator_selftest.sh` on encoding alone, and one scope-gate scenario needs a filename containing `"`, which NTFS cannot create at all. Both are environment limits, not defects.
-
 All three of §8's next milestones are done: (1) T1–T12 run against a live model, results in `tests/behavioral-run-results.md` (11/12 conclusive and compliant; T8's fixture is a documented inconclusive, not a pass); (2) and (3) implemented together as optional, off-by-default Claude Code hooks under `hooks/`, documented in `docs/enforcement-roadmap.md`'s new v0.3 section. This note is additive per the project's own addendum-over-rewrite rule (B14) — §8's original text above is left as written.
+
+## Addendum — 2026-08-12
+
+**Verification is a four-command battery now, not three.** §2's list predates `hooks/`. Run all four from the repo root; each must end PASS:
+
+```bash
+python3 tests/validate_package.py
+bash tests/scope_gate_selftest.sh
+bash tests/validator_selftest.sh
+bash tests/hooks_selftest.sh          # added this session
+```
+
+**On Windows, export `PYTHONUTF8=1` first.** Without it, Python's `cp1252` console encoding fails `tests/validator_selftest.sh` on encoding alone — a false failure that says nothing about the validator. With it set, three of the four pass outright; the fourth reports one failing case, `scope_gate_selftest.sh` scenario 10, which needs a filename containing `"` that NTFS cannot create at any encoding. Both are environment limits, documented in the README's testing section, not defects.
+
+**What changed this session.** `tests/hooks_selftest.sh` closes the gap the v0.3 section flagged when the hooks shipped: they were the only shipped code verified once by hand and thereafter trusted, which is the posture the hooks exist to replace. It drives each hook with real JSON payloads on stdin and asserts the decision contract actually emitted. The cases worth knowing about, because they are the ones that rot without anyone noticing:
+
+- **"Allow" is empty stdout, not exit 0.** Both hooks exit 0 on every path, so a hook that failed open and a hook that never ran are indistinguishable to anything checking status. Several cases assert the absence of output specifically.
+- **Fail-open branches must announce themselves.** Unparseable stdin and a missing `protected-paths.txt` both allow the call — correctly — but must say so on stderr. A mechanical control degrading to "not enforced" has to be visible.
+- **Absolute `file_path` values**, the form Claude Code actually sends, relativized against `CLAUDE_PROJECT_DIR` before matching.
+- **The gate's report reaches the model verbatim on PASS**, including the uncommitted-work-only note. Summarizing that to a bare "PASS" is the specific regression guarded against, and it is caught.
+- **The Stop hook's block ladder** escalates to a human after `MAX_BLOCKS` rather than trapping the session, resets on PASS, and keeps counters per-session.
+
+Negative-tested by mutation rather than trusted: disabling the deny branch fails 7 assertions, summarizing the gate's PASS fails 3.
+
+`validate_package.py` also gained `hooks/` in `REQUIRED_FILES` — it had never required the hook files to exist at all, so a release could have shipped without them and still validated.
+
+**Next, in recommended order:**
+
+1. **Roadmap item 3, task-schema validation.** The most tractable of the remaining documented-only items: task YAML checked against a schema before work starts, so malformed tasks fail fast instead of inviting interpretation.
+2. **The Stop hook's `--base` gap.** `docs/enforcement-roadmap.md` calls this out as a real gap deserving its own proposal, not a silent fold-in: sessions that commit mid-task are audited by a hook that only sees uncommitted work.
+3. **A live end-to-end fire test.** The pipe-tests and the new suite both exercise the hooks directly; neither proves Claude Code actually invokes them. The one attempt on record did not observe the PreToolUse hook firing, attributed to the settings watcher rather than to logic. This repo now has a `.claude/` directory, so the conditions to retry it exist.
+4. **Roadmap item 2, approval-directory write restrictions.**
+5. **Open the "Call for A/B results" issue** (§7 item 5). The package's central claims are testable and community data is still the missing piece.
+
+**Also this session, outside the package's own scope:** `.claude/CLAUDE.md` now carries this project's coding-agent rules. Its inherited "push after every commit" rule was replaced with a never-push rule — pushing is the maintainer's decision alone.
+
+---
+*Handoff addendum prepared 2026-08-12. Four-command battery run immediately before commit; results as described above.*
