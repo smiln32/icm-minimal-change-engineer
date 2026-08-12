@@ -51,8 +51,8 @@
 - **Write clear commit messages.** Format: `type: short description` (e.g., `feat: add coaching card component`, `fix: resolve mic bleed on mono downmix`, `refactor: extract audio utils to separate module`).
   - _Why: Good commit messages are your breadcrumb trail when something breaks and you need to find when it started._
 
-  - **Push to the remote after every commit.** Do not wait to be asked. Every commit should be followed by `git push origin <current-branch>` automatically.
-  - _Why: Local-only commits are invisible to deployment pipelines and provide no backup. Pushing immediately keeps the remote in sync and triggers any CI/CD._
+- **Never push. The user pushes, and only when they choose to.** Do not run `git push` under any circumstances, including when a task feels finished, when asked to "wrap up," or when a commit is the last step. Commit, report the branch name and how many commits are unpushed, and stop there.
+  - _Why: A push can trigger a live production deploy. Deploy timing is the user's decision alone, and an agent cannot know whether the moment is right._
 
 - **If the AI has failed 3+ attempts at a fix and the code is getting messier, stop.** Run `git reset --hard` to the last good commit. Re-approach with a fresh, clear prompt that includes what you now know about the problem.
   - _Why: LLMs accumulate layers of bad code after multiple failed rewrites. Resetting to clean state and re-prompting with better context almost always solves it faster._
