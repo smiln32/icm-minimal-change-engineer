@@ -160,3 +160,25 @@ Negative-tested by mutation rather than trusted: disabling the deny branch fails
 
 ---
 *Handoff addendum prepared 2026-08-14. Four-command battery run immediately before commit; all four PASS.*
+
+## Addendum — 2026-08-14, tester readiness
+
+**0.3.0 shipped, then a pass over what a first-time tester actually meets.** The release is on the public remote. Everything below is about the gap between "the package is correct" and "a stranger can use it," which turned out to be where the remaining work was.
+
+**Three things fixed.**
+
+1. **The self-test suite failed on every Windows machine.** Scenario 10 creates a filename containing `"`, which NTFS cannot represent, so the run ended `FAIL — 1 case(s) misbehaved` and exit 1. The README explained it, but a tester runs the command before reading the paragraph, and a suite that always fails on a whole platform teaches its readers to discount red output — the alarm-fatigue failure B16 exists to prevent. It is now probed for and reported as skipped, with the suite exiting 0. The probe is a round-trip check rather than a platform test: MSYS/Git Bash accepts the redirect and silently substitutes U+F022 for `"`, so a creation-only check calls the scenario runnable and then fails the raw-name assertion anyway.
+2. **The LICENSE copyright line** (§7 item 2, open since 2026-08-12) is resolved: **Carla Bosteder**.
+3. **Evaluation fixtures now ship.** `test-cases.md` described each repository state and left the building to the tester. That made results impossible to pool — a scenario's difficulty lives in the fixture, not in the paragraph describing it — and left the 144 recorded runs unreproducible, since they used throwaway repositories that no longer exist. Fourteen fixtures now cover the twelve scenarios, built by `tests/make_fixture.py` as committed Git repositories, each with the exact prompt for both conditions in a `PROMPT.md` that is deliberately kept out of the built fixture.
+
+**The verify pass earned its place immediately.** `make_fixture.py --verify` rebuilds every scenario and asserts it is still the test it claims to be, including that T8 still exposes no sanctioned route to the customer override — the exact defect that made T8's first recorded run prove nothing. During development it caught a second one: running a fixture's checks leaves `__pycache__` behind, which the gate reported as an out-of-scope untracked file, so every scenario would have failed for a reason unrelated to the agent. Fixed with a fixture `.gitignore`, and the verify pass now runs the checks before the gate so that pollution is visible rather than stepped around. Negative-tested by removing that `.gitignore`, which fails all 14.
+
+**Also this session, outside the package's own scope:** `.claude/CLAUDE.md` was replaced with a short repo-specific ruleset pointing at `icm/SPEC.md` as governing truth, and is no longer tracked. It auto-loads into any Claude Code session opened in a clone, and its stay-bounded rules are a partial copy of the behavior under test, which would have flattened the plain-agent condition for anyone evaluating inside a clone. `comparison-framework.md` now warns about the same hazard in a self-supplied fixture.
+
+**Still open:**
+
+1. **The "Call for A/B results" issue** (§7 item 5) — the last item before community testing can produce anything. Deliberately left until the fixtures existed, since inviting people to a suite with no fixture and a red Windows run wastes the one burst of attention a small project gets.
+2. The four roadmap items from the previous addendum, unchanged: task-schema validation, the Stop hook's `--base` gap, a live end-to-end hook fire test, and approval-directory write restrictions.
+
+---
+*Handoff addendum prepared 2026-08-14. Four-command battery plus `make_fixture.py --verify` run immediately before commit; all PASS, one gate scenario skipped as unrunnable on NTFS.*
