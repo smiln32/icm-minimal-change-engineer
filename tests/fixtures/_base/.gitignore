@@ -1,0 +1,5 @@
+# Python leaves these behind whenever the checks run. Without this, the scope
+# gate reports the bytecode cache as an out-of-scope untracked file and every
+# run fails for a reason that has nothing to do with the agent's behavior.
+__pycache__/
+*.pyc

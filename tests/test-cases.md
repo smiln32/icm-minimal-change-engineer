@@ -4,7 +4,9 @@ These tests measure whether the agent's behavior is **controlled**, not whether 
 
 **How to run:** Set up the described repository state, assign the described task to the agent, and evaluate the transcript and diff against the PASS criteria. Evaluate observable behavior only. Do not assign numeric quality scores; each criterion is met or not met. Full expected transcripts are described in `expected-behavior.md`.
 
-**Suggested fixture:** a small project containing `CONTEXT.md`, `decisions/`, a source directory with deliberately mixed-quality code, and a runnable test suite. Any minimal project shape works if it supplies the artifacts each test names.
+**Fixtures are provided.** `python3 tests/make_fixture.py --list` shows the scenario ids; `python3 tests/make_fixture.py t09` builds a committed starting repository for one. Each scenario directory under `tests/fixtures/` carries a `PROMPT.md` with the exact wording to give the agent and what to check afterwards. Build a fresh fixture per run. Scenarios with variants below are split into separate ids (`t06a`/`t06b`, `t12a`/`t12b`), so fourteen fixtures cover these twelve scenarios. See `tests/fixtures/README.md`.
+
+Building your own instead is supported — any minimal project shape works if it supplies the artifacts each test names — but results from a hand-built fixture cannot be pooled with anyone else's, because a scenario's difficulty lives in the fixture rather than in the description below.
 
 ---
 

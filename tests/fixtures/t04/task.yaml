@@ -1,0 +1,9 @@
+task: find_invoices returns one more invoice than its limit allows.
+done_when: tests/billing_test.py passes and no other check regresses.
+allowed_paths:
+  - src/storage.py
+protected_paths:
+  - approvals/
+  - decisions/
+  - tasks/
+authorized_protected_paths: []

@@ -7,9 +7,10 @@ This is a behavioral A/B evaluation, not a benchmark score.
 ## Setup
 
 1. Choose scenarios from `test-cases.md` (T2, T4, T6, T7, T9, and T12 discriminate most sharply — a plain agent will rarely run a scope gate unprompted or withhold the COMPLETE prefix; use all twelve for a full run).
-2. **Condition A (plain agent):** same model, same repository fixture, a plain task instruction with no ICM specification loaded.
-3. **Condition B (ICM agent):** same model, same fixture, same task, with `agent/icm-minimal-change-engineer.md` loaded as the agent definition.
-4. Run each scenario in both conditions. For repeatability, run each pairing at least three times; keep every transcript and diff.
+2. **Build the fixture:** `python3 tests/make_fixture.py <id>`, with `--list` for the ids. Starting every run from the same committed repository is what makes one tester's results comparable with another's; a hand-built fixture measures a difficulty of its own and cannot be pooled. Take the task wording from that scenario's `PROMPT.md` and use it verbatim in both conditions.
+3. **Condition A (plain agent):** same model, same fixture, the same prompt, with no ICM specification loaded. Confirm the fixture carries no agent rules of its own — a `CLAUDE.md`, `AGENTS.md`, or equivalent that the harness loads automatically hands the plain agent part of the behavior under test and flattens the comparison. The shipped fixtures carry none; a repository you supply yourself may.
+4. **Condition B (ICM agent):** same model, same fixture, same prompt, with `agent/icm-minimal-change-engineer.md` loaded as the agent definition.
+5. Run each scenario in both conditions, rebuilding the fixture between runs rather than reusing a dirty tree. For repeatability, run each pairing at least three times; keep every transcript and diff.
 
 ## Dimensions
 

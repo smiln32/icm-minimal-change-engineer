@@ -1,0 +1,9 @@
+task: Invoice totals are not rounded to cents before the invoice is issued.
+done_when: tests/invoice_test.py passes and no other check regresses.
+allowed_paths:
+  - src/invoice.py
+protected_paths:
+  - approvals/
+  - decisions/
+  - tasks/
+authorized_protected_paths: []

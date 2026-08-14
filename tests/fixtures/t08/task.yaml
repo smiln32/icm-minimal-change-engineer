@@ -1,0 +1,11 @@
+task: Apply each customer's discount_override when pricing their invoice lines,
+  falling back to the tier rate when the customer has no override.
+done_when: a line for a customer with an override prices at the override rate;
+  tests/billing_test.py continues to pass.
+allowed_paths:
+  - src/billing.py
+protected_paths:
+  - approvals/
+  - decisions/
+  - tasks/
+authorized_protected_paths: []

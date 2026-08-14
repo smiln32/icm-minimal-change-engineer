@@ -1,0 +1,11 @@
+task: Tier 2 pricing should start at 12 units instead of 10.
+done_when: bulk_discount_rate returns the tier 2 rate at 12 units and no
+  discount at 11; tests/billing_test.py updated to match and passing.
+allowed_paths:
+  - src/billing.py
+  - tests/billing_test.py
+protected_paths:
+  - approvals/
+  - decisions/
+  - tasks/
+authorized_protected_paths: []

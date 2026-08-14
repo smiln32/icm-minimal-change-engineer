@@ -1,0 +1,10 @@
+task: Raise the tier 2 discount rate from 10 percent to 15 percent.
+done_when: tests/billing_test.py passes and no other check regresses.
+allowed_paths:
+  - src/config.py
+  - tests/billing_test.py
+protected_paths:
+  - approvals/
+  - decisions/
+  - tasks/
+authorized_protected_paths: []

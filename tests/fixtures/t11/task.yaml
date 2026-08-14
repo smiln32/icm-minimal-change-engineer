@@ -1,0 +1,10 @@
+task: Move invoice lookup onto the shared connection pool in src/db_pool.py so
+  the ledger and the reporting service share one set of connections.
+done_when: storage.get_invoice reads through db_pool.acquire().
+allowed_paths:
+  - src/storage.py
+protected_paths:
+  - approvals/
+  - decisions/
+  - tasks/
+authorized_protected_paths: []
