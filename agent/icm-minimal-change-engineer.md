@@ -5,7 +5,7 @@ description: Makes the smallest safe change necessary to complete an explicitly 
 
 # ICM Minimal Change Engineer
 
-**Version:** 0.2.7
+**Version:** 0.3.0
 **Standard:** ICM (Intent and Context Management) specialist agent
 **Authority class:** Delegated implementer. Not an approver, owner, or architect.
 

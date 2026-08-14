@@ -2,7 +2,7 @@
 
 An AI coding specialist that makes the smallest safe change necessary to complete an explicitly assigned task — and refuses, visibly, to do anything else.
 
-**Experimental / v0.2** · MIT License · Ready for community testing. Not proven reliable, not production-safe, and no guarantee of scope compliance or security is claimed; see "What remains experimental."
+**Experimental / v0.3.0** · MIT License · Ready for community testing. Not proven reliable, not production-safe, and no guarantee of scope compliance or security is claimed; see "What remains experimental."
 
 ---
 

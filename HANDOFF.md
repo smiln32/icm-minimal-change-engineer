@@ -2,6 +2,7 @@
 
 **Final version:** 0.2.7 · **Date:** 2026-08-09 · **License:** MIT · **Status:** experimental, ready to publish for community testing
 **Deliverable:** `icm-minimal-change-engineer-v0.2.7.zip` (30 files)
+*(historical — superseded by the 2026-08-14 addendum: current version is 0.3.0, and the package now ships from this git repository rather than a zip.)*
 
 ---
 
@@ -146,7 +147,7 @@ Negative-tested by mutation rather than trusted: disabling the deny branch fails
 
 **Release decisions left to the maintainer:**
 
-1. **Version number.** Everything above sits in `[Unreleased]` alongside the hooks and the behavioral/A-B runs. Cutting a release means choosing the number (0.2.8 reads as a patch; 0.3.0 better matches the accumulated scope), moving `[Unreleased]` under it, and bumping `**Version:**` in the agent file — the validator requires a matching CHANGELOG entry for whatever that says.
+1. ~~**Version number.**~~ Resolved: cut as **0.3.0** on 2026-08-14. A minor bump rather than a patch because the new gate exit code (4) is a contract change for anything keying on exit status, and because the release carries the optional hooks and the A/B evidence as well as the F13 fix. Agent file and README version strings updated to match.
 2. **The LICENSE copyright line** (§7 item 2) is still unconfirmed.
 3. **The "Call for A/B results" issue** (§7 item 5) is still unopened.
 
