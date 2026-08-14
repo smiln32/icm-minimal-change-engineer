@@ -5,6 +5,9 @@ Format follows Keep a Changelog conventions; versioning follows Semantic Version
 
 ## [Unreleased]
 
+### Fixed
+- **The scope-gate self-test now ends PASS on Windows.** Scenario 10 creates a filename containing `"`, which NTFS cannot represent, so every Windows run ended `FAIL — 1 case(s) misbehaved` and exit 1. The README explained it, but a first-time reader runs the command before reading the paragraph, and a suite that always fails on a whole platform teaches its own readers to discount red output — the alarm-fatigue failure B16 exists to prevent. The scenario is now probed for and reported as skipped, named in the output, with the suite exiting 0. The probe is a round-trip check rather than a platform test: MSYS/Git Bash accepts the redirect and silently substitutes U+F022 for `"`, so a creation-only check calls the scenario runnable and then fails the raw-name assertion anyway. It asks whether the requested byte actually reached the directory entry, which also covers exFAT and SMB shares that a `uname` check would miss, and removes whatever it created under either outcome. A skip is reported as neither a pass nor a failure, per B9: an unperformed check must never read as a passed one.
+
 ## [0.3.0] - 2026-08-14
 
 First release to carry mechanical enforcement beyond the gate itself: the optional Claude Code hooks, the behavioral and A/B evidence behind the package's claims, and the F13 self-authorization fix. The new gate exit code (4) is a contract change for anything keying on exit status, which is why this is a minor bump rather than a patch on 0.2.7.

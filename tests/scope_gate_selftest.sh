@@ -55,9 +55,14 @@ GATE="$(cd "$(dirname "$0")" && pwd)/scope_gate.py"
 FIX="$(mktemp -d)"
 trap 'rm -rf "$FIX"' EXIT
 fails=0
+skips=0
 
 expect() { # expect <label> <expected_exit> <actual_exit>
   if [ "$2" -eq "$3" ]; then echo "ok   $1 (exit $3)"; else echo "FAIL $1 (expected $2, got $3)"; fails=$((fails+1)); fi
+}
+
+skip() { # skip <label> <reason>
+  echo "skip $1 -- $2"; skips=$((skips+1))
 }
 
 # --- fixture repo (task files live OUTSIDE the repo so they are not diff noise)
@@ -155,13 +160,49 @@ out=$(python3 "$GATE" --task "$FIX/task_auth_only.yaml" --repo .)
 case "$out" in *"approvals/release.md"*) echo "ok   substitution-bypass FAIL names the path";; *) echo "FAIL substitution output wrong: $out"; fails=$((fails+1));; esac
 git checkout -q -- .
 
-# 10. special-character filename (space + double quote) must be detected raw
+# 10. special-character filename (space + double quote) must be detected raw.
+# NTFS cannot represent '"' in a filename, so this scenario is unrunnable on
+# Windows. Probe the filesystem rather than test the platform name: the
+# constraint belongs to the filesystem, not the OS, and a probe also covers
+# the exFAT/SMB-share cases a uname check would miss. An unrunnable scenario
+# is reported as skipped -- never as a pass, which would claim a check that
+# did not happen (B9), and never as a failure, which would train the reader
+# to expect routine red output (B16's alarm-fatigue constraint).
 sneaky='src/we"ird file.py'
-printf 'x' > "$sneaky"
-python3 "$GATE" --task "$FIX/task.yaml" --repo . >/dev/null; expect "quoted-name untracked out-of-scope fails" 1 $?
-out=$(python3 "$GATE" --task "$FIX/task.yaml" --repo .)
-case "$out" in *'we"ird file.py'*) echo "ok   quoted-name FAIL shows raw filename";; *) echo "FAIL quoted-name output wrong: $out"; fails=$((fails+1));; esac
-rm "$sneaky"
+# Probe by round-trip, not by creation success. MSYS/Git Bash accepts the
+# redirect and silently substitutes U+F022 for '"', so the file appears to
+# exist while git and Python see a different name -- a creation-only check
+# would call the scenario runnable and then fail on the raw-name assertion.
+# Ask whether the byte we requested actually reached the directory entry.
+# The probe removes whatever it created, under either outcome.
+fs_keeps_quote() {
+  python3 - "$1" <<'PY'
+import os, sys
+path = sys.argv[1]
+directory, name = os.path.split(path)
+directory = directory or "."
+before = set(os.listdir(directory))
+try:
+    with open(path, "w") as handle:
+        handle.write("x")
+except OSError:
+    sys.exit(1)
+created = set(os.listdir(directory)) - before
+for entry in created:
+    os.unlink(os.path.join(directory, entry))
+sys.exit(0 if name in created else 1)
+PY
+}
+if fs_keeps_quote "$sneaky"; then
+  printf 'x' > "$sneaky"
+  python3 "$GATE" --task "$FIX/task.yaml" --repo . >/dev/null; expect "quoted-name untracked out-of-scope fails" 1 $?
+  out=$(python3 "$GATE" --task "$FIX/task.yaml" --repo .)
+  case "$out" in *'we"ird file.py'*) echo "ok   quoted-name FAIL shows raw filename";; *) echo "FAIL quoted-name output wrong: $out"; fails=$((fails+1));; esac
+  rm "$sneaky"
+else
+  rm -f "$sneaky" 2>/dev/null
+  skip "quoted-name scenario" "this filesystem cannot create a name containing '\"' (NTFS); the gate's raw-name handling is unexercised here"
+fi
 
 # 11. dotted/parent components in allowed_paths normalize before matching
 cat > "$FIX/task_dotted.yaml" <<'EOF'
@@ -402,5 +443,12 @@ PYSA
 git checkout -q -- .
 
 echo
-if [ "$fails" -eq 0 ]; then echo "PASS — scope gate self-test: all cases behaved as expected"; exit 0
-else echo "FAIL — scope gate self-test: $fails case(s) misbehaved"; exit 1; fi
+if [ "$fails" -ne 0 ]; then
+  echo "FAIL — scope gate self-test: $fails case(s) misbehaved"; exit 1
+elif [ "$skips" -ne 0 ]; then
+  echo "PASS — scope gate self-test: all runnable cases behaved as expected"
+  echo "       ($skips scenario(s) skipped as unrunnable on this filesystem, listed above)"
+  exit 0
+else
+  echo "PASS — scope gate self-test: all cases behaved as expected"; exit 0
+fi
