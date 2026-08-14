@@ -40,6 +40,12 @@
 #      coverage (v0.2.6, F7 + G1)
 #  20. the F4 boundary, live: a committed out-of-scope change is invisible to
 #      default mode (PASS + note) and caught by --base (v0.2.6, G2)
+#  21. self-authorization (F13): an in-repo task file is an
+#      authorization the audited work can rewrite. A modified, committed, or
+#      newly created in-repo task file refuses to certify (exit 4) in both
+#      modes and outranks scope/protected verdicts; configurations where the
+#      check cannot run (task file outside the repo, task_path omitted) say
+#      so on PASS instead of implying it ran
 #
 # Usage: bash tests/scope_gate_selftest.sh
 # Exit 0 = all cases behaved as expected.
@@ -309,6 +315,91 @@ expect "default mode is blind to committed violation (documented boundary)" 0 $r
 case "$out" in *"uncommitted work only"*) echo "ok   blindness carries the boundary note";; *) echo "FAIL boundary note absent: $out"; fails=$((fails+1));; esac
 python3 "$GATE" --task "$FIX/task.yaml" --repo . --base HEAD~1 >/dev/null; expect "--base catches the committed violation" 1 $?
 git reset -q --hard HEAD~1
+
+# 21. self-authorization: a task file INSIDE the repo is an authorization the
+# audited work can rewrite. Every case here uses an in-repo task file, unlike
+# the rest of this suite (see the fixture comment) — which is precisely why
+# the hole survived until F13 was found.
+mkdir -p tasks
+cat > tasks/live.yaml <<'EOF'
+allowed_paths:
+  - src/app.py
+protected_paths:
+  - approvals/
+authorized_protected_paths: []
+EOF
+git add tasks/live.yaml && git commit -qm "governing task"
+
+# 21a. control: in-repo task file, untouched -> ordinary verdict
+echo "x=3" > src/app.py
+python3 "$GATE" --task tasks/live.yaml --repo . >/dev/null; expect "in-repo task file, unmodified, passes normally" 0 $?
+
+# 21b. the attack: widen own allowed_paths to the whole repo, then sneak
+cat > tasks/live.yaml <<'EOF'
+allowed_paths:
+  - .
+protected_paths: []
+authorized_protected_paths: []
+EOF
+echo "unrequested" > src/sneaky.py
+echo "tampered" > approvals/release.md
+python3 "$GATE" --task tasks/live.yaml --repo . >/dev/null; expect "self-widened task file refuses to certify" 4 $?
+out=$(python3 "$GATE" --task tasks/live.yaml --repo .)
+case "$out" in *"task file changed"*"tasks/live.yaml"*) echo "ok   exit-4 report names the task file";; *) echo "FAIL self-auth output wrong: $out"; fails=$((fails+1));; esac
+case "$out" in *"NOT evaluated"*) echo "ok   exit-4 report withholds a scope verdict";; *) echo "FAIL exit-4 report implies a scope verdict: $out"; fails=$((fails+1));; esac
+
+# 21c. --base must not be an escape hatch
+python3 "$GATE" --task tasks/live.yaml --repo . --base HEAD >/dev/null; expect "--base mode also refuses" 4 $?
+
+# 21d. committing the widened task first must not launder it under --base
+git add -A && git commit -qm "sneak"
+python3 "$GATE" --task tasks/live.yaml --repo . --base HEAD~1 >/dev/null; expect "committed task edit still refuses under --base" 4 $?
+git reset -q --hard HEAD~1
+
+# 21e. a NEWLY CREATED (untracked) in-repo task file is the same self-authorization
+cat > tasks/fresh.yaml <<'EOF'
+allowed_paths:
+  - .
+protected_paths: []
+authorized_protected_paths: []
+EOF
+python3 "$GATE" --task tasks/fresh.yaml --repo . >/dev/null; expect "untracked in-repo task file refuses" 4 $?
+rm tasks/fresh.yaml
+
+# 21f. exit 4 outranks scope and protected failures (declarations untrusted,
+# so neither of those verdicts is meaningful). Scope and protected violations
+# are both present here and would otherwise return 1 and 2.
+cat > tasks/live.yaml <<'EOF'
+# edited during the task: differs from the committed governing version
+allowed_paths:
+  - src/app.py
+protected_paths:
+  - approvals/
+authorized_protected_paths: []
+EOF
+echo "out-of-scope" > src/other.py
+echo "tampered" > approvals/release.md
+python3 "$GATE" --task tasks/live.yaml --repo . >/dev/null; expect "exit 4 outranks scope+protected violations" 4 $?
+git checkout -q -- . ; git clean -qfd >/dev/null 2>&1
+
+# 21g. non-diff-verifiable configurations must announce themselves, not imply
+# a check that did not happen
+echo "x=4" > src/app.py
+out=$(python3 "$GATE" --task "$FIX/task.yaml" --repo .)
+case "$out" in *"outside the repository"*"not diff-verifiable"*) echo "ok   external task file PASS admits it is unverifiable";; *) echo "FAIL external-task note absent: $out"; fails=$((fails+1));; esac
+python3 - "$GATE" <<'PYSA'
+import sys, os
+sys.path.insert(0, os.path.dirname(sys.argv[1]))
+import scope_gate
+task = {"allowed_paths": ["src/app.py"], "protected_paths": [],
+        "authorized_protected_paths": []}
+code, report = scope_gate.run_gate(".", task)          # task_path omitted
+assert code == 0, code
+assert "was not checked" in report, report
+print("selfauth-ok")
+PYSA
+[ $? -eq 0 ] && echo "ok   omitted task_path is announced, not silently skipped" || { echo "FAIL omitted task_path note"; fails=$((fails+1)); }
+git checkout -q -- .
 
 echo
 if [ "$fails" -eq 0 ]; then echo "PASS — scope gate self-test: all cases behaved as expected"; exit 0

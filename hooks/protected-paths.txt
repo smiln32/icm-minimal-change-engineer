@@ -14,3 +14,9 @@ CONTEXT.md
 decisions/
 governance/
 specs/
+
+# Task definitions declare the scope tests/scope_gate.py enforces. An agent
+# able to edit them can widen its own allowed_paths and pass its own audit,
+# so they are read-only here too. The gate refuses to certify a run whose
+# task file changed (exit 4); this blocks the edit before it happens.
+tasks/

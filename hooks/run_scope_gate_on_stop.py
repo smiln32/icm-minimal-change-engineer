@@ -29,6 +29,11 @@ only" note -- is passed through verbatim, on PASS as well as FAIL:
 summarizing or dropping it here would silently discard the exact caveat
 this hook exists to make impossible to miss.
 
+ICM_TASK_FILE is passed to the gate as the task path, not just parsed for
+its contents, so the gate can check whether the session edited its own
+declarations. Without it a session could widen allowed_paths in the task
+file and be blessed by the hook that exists to catch exactly that.
+
 On FAIL, blocks the Stop event (decision: "block") and feeds the gate's
 own report back as the reason, so the model must address it or produce an
 explicit BLOCKED REPORT rather than silently finishing with unreported
@@ -94,7 +99,8 @@ def main():
         return 0
 
     try:
-        code, report = gate.run_gate(str(repo_root), task, base=None)
+        code, report = gate.run_gate(str(repo_root), task, base=None,
+                                     task_path=task_file)
     except RuntimeError as e:
         print(json.dumps({
             "systemMessage": f"run_scope_gate_on_stop: gate error: {e}",

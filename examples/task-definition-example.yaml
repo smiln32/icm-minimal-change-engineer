@@ -10,6 +10,13 @@
 # grants the whole repository (protected_paths still applies on top).
 #
 # Run the gate:  python3 tests/scope_gate.py --task this-file.yaml --repo .
+#
+# WHERE TO KEEP THIS FILE: commit it, and treat it as read-only for the agent
+# — it is the authorization the gate enforces, so an agent that can edit it can
+# widen its own scope and pass its own audit. The gate refuses to certify any
+# run whose in-repo task file changed (exit 4). Keeping task files outside the
+# repository also works, but then the gate cannot diff them and says so on
+# PASS; the committed-and-protected arrangement is the checkable one.
 
 task: Fix percentage coupons over 50% applying as fixed amounts.
 done_when: test "applies 75% coupon correctly" passes; no other test regresses.

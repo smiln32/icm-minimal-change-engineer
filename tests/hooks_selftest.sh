@@ -39,6 +39,8 @@
 #      hands over to a human instead of trapping the session
 #  18. a PASS clears the counter, so a later violation restarts at 1/3
 #  19. counters are per-session: a second session_id starts its own ladder
+#  20. ICM_TASK_FILE reaches the gate as a path, so a session that widens its
+#      own in-repo task file is blocked rather than blessed (F13)
 #
 # Usage: bash tests/hooks_selftest.sh
 # Exit 0 = all cases behaved as expected.
@@ -53,6 +55,7 @@ fails=0
 
 SESSION_A=icmselftestsessionA
 SESSION_B=icmselftestsessionB
+SESSION_C=icmselftestsessionC
 
 # The Stop hook keeps its per-session block counter in the system temp dir,
 # which outlives this fixture. Ask Python for the same path it uses rather
@@ -63,7 +66,8 @@ clear_counter() {
 pathlib.Path(tempfile.gettempdir(), "icm-gate-stop-%s.count" % sys.argv[1]).unlink(missing_ok=True)' "$1"
 }
 
-cleanup() { rm -rf "$FIX"; clear_counter "$SESSION_A"; clear_counter "$SESSION_B"; }
+cleanup() { rm -rf "$FIX"; clear_counter "$SESSION_A"; clear_counter "$SESSION_B"
+            clear_counter "$SESSION_C"; }
 trap cleanup EXIT
 
 expect() { # expect <label> <expected_exit> <actual_exit>
@@ -265,6 +269,26 @@ expect_has "PASS cleared the counter (back to 1/3)" "attempt 1/3" "$out"
 out=$(stop_payload "$SESSION_B" | ICM_TASK_FILE=task.yaml CLAUDE_PROJECT_DIR=. python3 "$STOPHOOK")
 expect_has "a second session starts its own ladder" "attempt 1/3" "$out"
 git checkout -q -- .
+
+# 20. self-authorization at the hook layer (F13). ICM_TASK_FILE must
+# reach the gate as a PATH, not just as parsed contents: a session that widens
+# its own in-repo task file would otherwise be blessed by the very hook that
+# exists to audit it. The regression this guards is a one-word change in the
+# hook (dropping task_path=), so it is asserted here, not inferred from the
+# gate's own suite.
+clear_counter "$SESSION_C"
+cat > task.yaml <<'EOF'
+allowed_paths:
+  - .
+protected_paths: []
+authorized_protected_paths: []
+EOF
+echo "unrequested" > src/sneaky.py
+out=$(stop_payload "$SESSION_C" | ICM_TASK_FILE=task.yaml CLAUDE_PROJECT_DIR=. python3 "$STOPHOOK")
+expect_has "self-widened task file blocks Stop" '"decision": "block"' "$out"
+expect_has "block explains the task file changed" "task file changed" "$out"
+expect_has "block withholds a scope verdict" "NOT evaluated" "$out"
+git checkout -q -- . ; rm -f src/sneaky.py
 
 # --- report -----------------------------------------------------------------
 echo

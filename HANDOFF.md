@@ -133,3 +133,29 @@ Negative-tested by mutation rather than trusted: disabling the deny branch fails
 
 ---
 *Handoff addendum prepared 2026-08-12. Four-command battery run immediately before commit; results as described above.*
+
+## Addendum — 2026-08-14
+
+**Release-readiness review of the enforcement machinery, and one real defect found (F13).** The four-command battery passed on the shipped tree before any change, so the review went after the machinery adversarially instead: build a fixture repo, play the attacker, and see what a non-compliant agent could actually get past the gate.
+
+**What was found.** The gate audited the real diff but trusted the declarations it was handed. With task files inside the repository — the arrangement the package's own example encourages — those declarations are agent-writable. A session could rewrite its own task file to `allowed_paths: [.]`, add an unrequested module, tamper with an approved decision record, and collect a clean PASS. It passed in default mode, in `--base` mode, and through the Stop hook, which reported that PASS to the model as automated verification. The README's central claim — "it does not trust the model's description of what it changed" — was defeated by editing the description. The existing self-test could not have caught it: its fixture deliberately keeps task files *outside* the repo to avoid diff noise, which made the scenario structurally unobservable.
+
+**What changed.** The gate checks the task file's integrity before evaluating scope and returns a new exit 4 — naming the file and withholding a scope verdict rather than reporting one computed from untrusted declarations. The Stop hook passes `ICM_TASK_FILE` as a path, not just parsed contents. `hooks/protected-paths.txt` gains `tasks/`. Coverage: gate scenario 21, hooks case 20, mutation-tested four ways. Design record: BRIEF B17. Full detail in the CHANGELOG's Unreleased section.
+
+**Two accuracy corrections, worth more than the code fix in some ways.** `docs/controls.md` had listed self-authorization prevention under *mechanically enforced* when only its weaker half was. And nothing anywhere said plainly that the gate checks *which paths* changed, never *what changed inside them* — so an unrequested refactor confined to an already-allowed file passes cleanly. That is the largest remaining gap between "gate PASS" and "only the requested change was made," and `docs/controls.md` now has a section listing it alongside the symlink and committed-task-file boundaries.
+
+**Release decisions left to the maintainer:**
+
+1. **Version number.** Everything above sits in `[Unreleased]` alongside the hooks and the behavioral/A-B runs. Cutting a release means choosing the number (0.2.8 reads as a patch; 0.3.0 better matches the accumulated scope), moving `[Unreleased]` under it, and bumping `**Version:**` in the agent file — the validator requires a matching CHANGELOG entry for whatever that says.
+2. **The LICENSE copyright line** (§7 item 2) is still unconfirmed.
+3. **The "Call for A/B results" issue** (§7 item 5) is still unopened.
+
+**Next, in recommended order** — unchanged from the 2026-08-12 list except that the task-schema item now has a second reason to exist:
+
+1. **Roadmap item 3, task-schema validation.** Beyond fail-fast on malformed tasks, a schema is where a "task files must be committed and protected" convention could be checked rather than documented.
+2. **The Stop hook's `--base` gap.** Now load-bearing for F13 too: default mode is blind to a task file the agent committed, so the pre-hoc PreToolUse block is currently the stronger of the two protections.
+3. **A live end-to-end fire test** of the hooks under Claude Code.
+4. **Roadmap item 2, approval-directory write restrictions.**
+
+---
+*Handoff addendum prepared 2026-08-14. Four-command battery run immediately before commit; all four PASS.*

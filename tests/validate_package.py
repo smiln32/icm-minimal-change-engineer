@@ -253,7 +253,7 @@ for d in ROOT.rglob("*"):
 #        fires on deletion, never on growth, so it cannot train the author
 #        to expect routine failures;
 #   (iii) no numeric self-test count claim exists in the README.
-SCENARIO_FLOOR = 20  # scenarios shipped as of v0.2.6; raise deliberately, never lower
+SCENARIO_FLOOR = 21  # raised for F13 self-authorization coverage; raise deliberately, never lower
 selftest = read("tests/scope_gate_selftest.sh")
 _markers = [int(m) for m in re.findall(r"^# (\d+)\.", selftest, re.M)]
 n_scenarios = max(_markers) if _markers else 0

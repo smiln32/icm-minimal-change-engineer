@@ -92,8 +92,11 @@ expect_fail "scenario-numbering gap caught" "not contiguous"
 fresh; python3 - "$FIX/pkg/tests/scope_gate_selftest.sh" <<'PY'
 import sys, re
 p = sys.argv[1]; s = open(p).read()
-# strip every body marker above 15 so max drops below the shipped floor
-s = re.sub(r"^# (1[6-9]|20)\. ", r"# note: ", s, flags=re.M)
+# strip every body marker above 15 so max drops below the shipped floor.
+# The range is open-ended (16-99) so this case keeps testing the FLOOR as the
+# suite grows; a hard-coded upper bound would leave a higher marker in place
+# and trip the contiguity check instead, silently retiring this case.
+s = re.sub(r"^# (1[6-9]|[2-9][0-9])\. ", r"# note: ", s, flags=re.M)
 open(p, "w").write(s)
 PY
 expect_fail "suite shrink below shipped floor caught" "below its shipped floor"

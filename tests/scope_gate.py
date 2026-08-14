@@ -55,6 +55,13 @@ Semantics:
   * Default mode (no --base) audits working tree + index vs HEAD ONLY —
     it cannot see work already committed. A PASS in default mode carries an
     explicit note to that effect; audit committed work with --base.
+  * The task file itself is checked for tampering before scope is evaluated.
+    allowed_paths is the authorization for the whole audit, so an agent that
+    can edit the task file can authorize itself; if the task file lies inside
+    the repository and appears in the diff, the gate refuses to certify
+    anything (exit 4) instead of auditing against declarations the change
+    under audit may have written. A task file OUTSIDE the repository is not
+    diff-visible and therefore cannot be integrity-checked — a PASS says so.
 
 Usage:
     python3 scope_gate.py --task TASK.yaml [--repo DIR] [--base REF]
@@ -67,9 +74,12 @@ Exit codes:
     1  FAIL  — changed files outside authorized scope
     2  FAIL  — protected artifact modified (takes precedence over exit 1)
     3  error — bad usage, unreadable task file, or git failure
+    4  FAIL  — task file itself changed; declarations untrusted, scope NOT
+               audited (takes precedence over every other result)
 """
 
 import argparse
+import os
 import posixpath
 import subprocess
 import sys
@@ -272,8 +282,38 @@ def ignored_untracked(repo):
     return {t for t in out.split("\0") if t}
 
 
-def run_gate(repo, task, base=None):
-    """Returns (exit_code, report_text)."""
+def task_repo_path(repo, task_path):
+    """The task file's repo-relative path, or None if it is not inside `repo`.
+
+    A task file outside the repository never appears in the diff, so its
+    integrity cannot be checked here; None means "not diff-verifiable",
+    not "verified clean".
+
+    Both sides are resolved through realpath: where the repo is reached via a
+    symlink (macOS /tmp -> /private/tmp is the common case), comparing
+    unresolved paths makes an in-repo task file look external and silently
+    skips the check on the platforms most likely to hit it.
+    """
+    try:
+        rel = os.path.relpath(os.path.realpath(task_path),
+                              os.path.realpath(repo))
+    except ValueError:
+        return None                      # different drive on Windows
+    rel = rel.replace("\\", "/")
+    if rel == ".." or rel.startswith("../"):
+        return None
+    return normalize(rel)
+
+
+def run_gate(repo, task, base=None, task_path=None):
+    """Returns (exit_code, report_text).
+
+    `task_path` is the path the declarations were read from. Pass it: the
+    gate's premise is that it trusts the diff rather than the agent, and
+    allowed_paths is an authorization the agent can rewrite if the task file
+    is inside the repository. Omitting it leaves that check unperformed, and
+    a resulting PASS says so rather than implying it was checked.
+    """
     changed = changed_paths(repo, base)
     # F5 bypass closure: untracked detection honors .gitignore, so a task
     # that edits ignore rules could hide new out-of-scope files. Rule: if
@@ -285,6 +325,33 @@ def run_gate(repo, task, base=None):
     # of this gate's reach; see docs/enforcement-roadmap.md.)
     if any(posixpath.basename(normalize(c)) == ".gitignore" for c in changed):
         changed = sorted(set(changed) | ignored_untracked(repo))
+
+    # Self-authorization check, before any scope evaluation. Every other
+    # result in this function is computed FROM the task file, so if the task
+    # file is part of the change under audit, no result computed from it can
+    # be trusted — a widened allowed_paths produces a PASS that means nothing.
+    # Refuse to certify rather than report a scope verdict derived from
+    # declarations the audited work may have written (agent spec: "never
+    # write, widen, or infer allowed_paths"; BRIEF B13).
+    rel_task = task_repo_path(repo, task_path) if task_path is not None else None
+    if rel_task is not None and any(normalize(c) == rel_task for c in changed):
+        return 4, (
+            "FAIL — task file changed during the audited work:\n"
+            "\n"
+            f"{rel_task}\n"
+            "\n"
+            "The task file declares the scope this gate enforces, so a task "
+            "file created or modified inside the audited diff can authorize "
+            "the very change being audited. Scope was NOT evaluated and "
+            "nothing here is certified.\n"
+            "\n"
+            "Resolve by restoring the task file to its governing version "
+            "(the agent must never write or widen its own declarations), or "
+            "— if a human deliberately amended the task — commit the "
+            "amendment and re-run with --base set to that commit, so the "
+            "audit baseline includes the approved declarations."
+        )
+
     allowed = task["allowed_paths"]
     protected = task["protected_paths"]
     authorized_protected = task["authorized_protected_paths"]
@@ -349,6 +416,17 @@ def run_gate(repo, task, base=None):
         pass_text += ("\nnote — default mode audits uncommitted work only "
                       "(working tree + index vs HEAD); if changes were "
                       "committed during the task, re-run with --base <pre-task ref>")
+    # Announce an unperformed integrity check rather than letting a bare PASS
+    # imply the declarations were verified (same principle as the note above).
+    if task_path is None:
+        pass_text += ("\nnote — task-file integrity was not checked (no task "
+                      "path supplied to the gate); declarations are assumed "
+                      "unmodified")
+    elif rel_task is None:
+        pass_text += ("\nnote — the task file lies outside the repository, so "
+                      "its integrity is not diff-verifiable here; this PASS "
+                      "assumes the declarations it was read from are the "
+                      "governing ones")
     return 0, pass_text
 
 
@@ -387,7 +465,7 @@ def main():
         return 3
 
     try:
-        code, report = run_gate(args.repo, task, args.base)
+        code, report = run_gate(args.repo, task, args.base, task_path=args.task)
     except RuntimeError as e:
         print(f"error — {e}", file=sys.stderr)
         return 3
