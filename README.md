@@ -134,6 +134,7 @@ icm-minimal-change-engineer/
 │   ├── validate_package.py        ← mechanical structural validator
 │   ├── scope_gate.py              ← deterministic Git diff scope + protected-path gate
 │   ├── scope_gate_selftest.sh     ← proves the gate passes/fails correctly
+│   ├── validator_selftest.sh      ← proves the validator itself, in a git-clone fixture
 │   └── hooks_selftest.sh          ← proves both optional hooks emit the right decisions
 ├── examples/
 │   ├── example-use.md             ← end-to-end usage walkthrough
