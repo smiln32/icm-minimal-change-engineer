@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 .claude/settings.local.json
+# Auto-loads into any Claude Code session opened in a clone, which would give
+# the plain-agent condition of tests/comparison-framework.md a partial copy of
+# the very rules under test. Kept locally, not shipped.
+.claude/CLAUDE.md
