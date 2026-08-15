@@ -52,12 +52,19 @@ It is designed around ICM principles rather than having them bolted on: artifact
 
 ## How do I install / use it?
 
-**Claude Code (custom agent):**
+**Claude Code, one command:**
 
 ```bash
-mkdir -p .claude/agents
-cp agent/icm-minimal-change-engineer.md .claude/agents/
+python3 install.py /path/to/your/project
 ```
+
+Add `--dry-run` to see what it would do first, or `--no-hooks` for the agent definition and gate without the mechanical enforcement.
+
+It places the agent definition in `.claude/agents/`, the gate and hooks in a single `.icm/` directory, wires the hooks into `.claude/settings.json` without disturbing hooks already there, generates a protected-paths list from the governing files your project actually has, and drops in an example task file. Nothing is written to your project root, and nothing existing is overwritten silently. To uninstall, delete `.icm/` and remove the two entries it added.
+
+Three things it deliberately leaves to you, because no installer can guess them: writing a task file per task with its `allowed_paths`, setting `ICM_TASK_FILE` for the session if you want the Stop hook to audit against it, and restarting Claude Code so the new settings are picked up.
+
+**By hand**, if you would rather: copy `agent/icm-minimal-change-engineer.md` into `.claude/agents/`, and see the optional-enforcement note below.
 
 **Other environments:** provide `agent/icm-minimal-change-engineer.md` as the system/agent definition for the coding session.
 
@@ -115,6 +122,7 @@ The full list is in the agent file under "What This Agent Does NOT Own."
 ```
 icm-minimal-change-engineer/
 ├── README.md                      ← this file
+├── install.py                     ← one-command install into your own project
 ├── LICENSE                        ← MIT
 ├── CHANGELOG.md                   ← release history (Keep a Changelog style)
 ├── PROVENANCE.md                  ← origin and originality statement

@@ -201,7 +201,12 @@ expect_has "missing config announces non-enforcement" "enforcement is NOT active
 # 11. the denial has to be actionable: which path, and where to change it
 out=$(pre_payload "CONTEXT.md" | CLAUDE_PROJECT_DIR=. python3 "$PROTECT")
 expect_has "deny reason names the path" "CONTEXT.md" "$out"
-expect_has "deny reason names its config file" "hooks/protected-paths.txt" "$out"
+# Match the filename, not a fixed prefix. The hook now reports the config
+# relative to the project when it sits inside it (the installed .icm/ layout)
+# and absolute otherwise, so a hard-coded "hooks/" prefix would assert the
+# package layout rather than the contract, which is that the reader is told
+# which file to edit.
+expect_has "deny reason names its config file" "protected-paths.txt" "$out"
 
 # ===========================================================================
 # run_scope_gate_on_stop.py

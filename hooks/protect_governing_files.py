@@ -42,7 +42,45 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 CONFIG_PATH = HERE / "protected-paths.txt"
-GATE_PATH = HERE.parent / "tests" / "scope_gate.py"
+
+
+def find_gate():
+    """Locate scope_gate.py in either the package layout or an installed one.
+
+    In this repository the gate sits at ../tests/scope_gate.py. install.py
+    puts it at ../scope_gate.py inside a project's .icm/ directory, because
+    dropping a tests/ folder into someone else's project root would collide
+    with the tests/ folder they already have. Both are supported rather than
+    one being converted to the other, so the hooks keep working here and there
+    with no edit at install time.
+    """
+    override = os.environ.get("ICM_GATE")
+    candidates = ([Path(override)] if override else []) + [
+        HERE.parent / "tests" / "scope_gate.py",
+        HERE.parent / "scope_gate.py",
+        HERE / "scope_gate.py",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
+GATE_PATH = find_gate()
+
+
+def config_label():
+    """How to refer to the config file in a message the user will act on.
+
+    Relative to the project when it sits inside it (the installed .icm/
+    layout), absolute otherwise. Naming a path the reader cannot find is
+    worse than naming none.
+    """
+    root = os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd()
+    try:
+        return CONFIG_PATH.relative_to(Path(root).resolve()).as_posix()
+    except ValueError:
+        return str(CONFIG_PATH)
 
 
 def load_scope_gate():
@@ -101,11 +139,11 @@ def main():
                 "permissionDecision": "deny",
                 "permissionDecisionReason": (
                     f"'{rel}' is a protected governing file "
-                    f"(hooks/protected-paths.txt). Governing files are "
+                    f"({config_label()}). Governing files are "
                     f"read-only for agent tooling: inspect them, never "
                     f"edit them. If this file genuinely needs to change, "
                     f"a human must edit it directly outside this session, "
-                    f"or edit hooks/protected-paths.txt to descope it."
+                    f"or edit {config_label()} to descope it."
                 ),
             }
         }))

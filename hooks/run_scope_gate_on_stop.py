@@ -51,7 +51,29 @@ import tempfile
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-GATE_PATH = HERE.parent / "tests" / "scope_gate.py"
+def find_gate():
+    """Locate scope_gate.py in either the package layout or an installed one.
+
+    In this repository the gate sits at ../tests/scope_gate.py. install.py
+    puts it at ../scope_gate.py inside a project's .icm/ directory, because
+    dropping a tests/ folder into someone else's project root would collide
+    with the tests/ folder they already have. Both are supported rather than
+    one being converted to the other, so the hooks keep working here and there
+    with no edit at install time.
+    """
+    override = os.environ.get("ICM_GATE")
+    candidates = ([Path(override)] if override else []) + [
+        HERE.parent / "tests" / "scope_gate.py",
+        HERE.parent / "scope_gate.py",
+        HERE / "scope_gate.py",
+    ]
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
+    return candidates[0]
+
+
+GATE_PATH = find_gate()
 MAX_BLOCKS = 3
 
 
