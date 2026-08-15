@@ -132,7 +132,8 @@ icm-minimal-change-engineer/
 │   ├── behavioral-run-haiku.md    ← recorded T1-T12 run, Claude Haiku 4.5
 │   ├── comparison-run-results.md  ← recorded A/B comparison run
 │   ├── fixtures/                  ← ready-made starting repositories, one per scenario
-│   ├── make_fixture.py            ← builds a fixture; --verify re-checks they still test what they claim
+│   ├── results/                   ← where returned test results are filed
+│   ├── make_fixture.py            ← builds a fixture, writes a result file, and --verify re-checks the fixtures
 │   ├── validate_package.py        ← mechanical structural validator
 │   ├── scope_gate.py              ← deterministic Git diff scope + protected-path gate
 │   ├── scope_gate_selftest.sh     ← proves the gate passes/fails correctly

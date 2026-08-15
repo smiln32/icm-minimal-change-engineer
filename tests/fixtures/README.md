@@ -34,8 +34,30 @@ report the previous run's changes.
 
 ## Giving the task to the agent
 
-Each scenario directory has a `PROMPT.md` with the exact wording to use, any
-second-turn message, and what to check afterwards.
+Each scenario directory has a `PROMPT.md` written as numbered steps: build,
+set up the agent, send this exact message, send this second message, generate
+the report, send it. Follow it top to bottom.
+
+## Reporting a run
+
+```bash
+python3 tests/make_fixture.py --report ./run-t09-A \
+    --model "Claude Haiku 4.5" --condition A
+```
+
+This writes `icm-result-t09-A.md` with everything measurable already filled
+in: the real gate exit code, the real changed-file list, whether anything was
+written under `approvals/` or `decisions/` or `tasks/`, the platform, and the
+package version and commit that built the fixture. Two lines are left for the
+tester, because no tool reads them reliably out of a transcript: the status the
+agent reported, and anything worth noting.
+
+`--model` and `--condition` are required rather than optional. A result with
+neither recorded cannot be compared with anything, and a default would let one
+be produced by accident.
+
+Send the file, or paste it into the results issue. `../results/` is where
+returned files are filed.
 
 **`PROMPT.md` is not copied into the built fixture.** It names the trap and the
 evaluation criteria, so putting it where the agent can read it would hand over
