@@ -27,6 +27,15 @@
 #      boundary, asserted so a silent change to it fails here first
 #  10. missing protected-paths.txt -> fails OPEN with a stderr note
 #  11. deny reason names the offending path and its config file
+#  21. live per-task scope (ICM_TASK_FILE set): an in-scope edit is allowed,
+#      an out-of-scope edit is denied BEFORE it happens rather than caught at
+#      handoff, and the deny names what allowed_paths actually declares
+#  22. the task file itself is denied as self-authorization, outranking the
+#      protected-file message, mirroring the gate's exit 4 > 2 precedence
+#  23. ICM_TASK_FILE unset -> no scope opinion at all, so non-ICM sessions and
+#      the standing protected list behave exactly as before
+#  24. an unreadable or malformed task file fails OPEN and says on stderr that
+#      SCOPE enforcement is not active, matching this hook's existing posture
 #
 # run_scope_gate_on_stop.py (Stop):
 #  12. ICM_TASK_FILE unset   -> silent no-op (non-ICM sessions unaffected)
@@ -213,6 +222,52 @@ expect_has "deny reason names its config file" "protected-paths.txt" "$out"
 # ===========================================================================
 
 stop_payload() { printf '{"session_id":"%s"}' "$1"; }
+
+# 21-24. live per-task scope enforcement. The standing protected list is
+# task-independent; this is the per-task change surface, checked before the
+# write instead of at handoff. Driven with ICM_TASK_FILE set, which is the
+# same opt-in the Stop hook uses.
+cat > "$FIX/live-task.yaml" <<'EOF'
+allowed_paths:
+  - src/app.py
+protected_paths:
+  - CONTEXT.md
+authorized_protected_paths: []
+EOF
+
+out=$(pre_payload "src/app.py" | ICM_TASK_FILE="$FIX/live-task.yaml"       CLAUDE_PROJECT_DIR=. python3 "$PROTECT")
+expect_empty "in-scope edit allowed while a task is active" "$out"
+
+out=$(pre_payload "src/other.py" | ICM_TASK_FILE="$FIX/live-task.yaml"       CLAUDE_PROJECT_DIR=. python3 "$PROTECT")
+expect_has "out-of-scope edit denied before it happens" '"permissionDecision": "deny"' "$out"
+expect_has "scope deny names what the task authorizes" "src/app.py" "$out"
+expect_has "scope deny names the offending file" "src/other.py" "$out"
+
+# The task file is inside the project here, so it is both the task file and
+# (in a real install) a protected path. The self-authorization message must
+# win: the remediation differs in kind, exactly as exit 4 outranks exit 2.
+cp "$FIX/live-task.yaml" tasks-live.yaml
+out=$(pre_payload "tasks-live.yaml" | ICM_TASK_FILE=tasks-live.yaml       CLAUDE_PROJECT_DIR=. python3 "$PROTECT")
+expect_has "editing the active task file is denied" '"permissionDecision": "deny"' "$out"
+expect_has "task-file deny cites self-authorization" "widen its own permissions" "$out"
+rm -f tasks-live.yaml
+
+# Without the opt-in there must be no scope opinion whatsoever, or every
+# non-ICM session in a project with these hooks installed breaks.
+out=$(pre_payload "src/other.py" | CLAUDE_PROJECT_DIR=. python3 "$PROTECT")
+expect_empty "no task set means no scope opinion" "$out"
+
+# Fails OPEN, like every other degradation in this hook, and says so.
+# Same malformation the gate's own suite uses for its exit-3 case: a list
+# item dangling after a key that was already closed by an inline value.
+printf 'protected_paths: []
+  - approvals/
+allowed_paths:
+  - src/app.py
+'     > "$FIX/broken-task.yaml"
+err=$(pre_payload "src/other.py" | ICM_TASK_FILE="$FIX/broken-task.yaml"       CLAUDE_PROJECT_DIR=. python3 "$PROTECT" 2>&1 >/dev/null)
+expect_has "malformed task file announces non-enforcement" "SCOPE enforcement is NOT" "$err"
+
 
 # 12. no ICM_TASK_FILE -> silent no-op, so non-ICM sessions are untouched
 out=$(stop_payload "$SESSION_A" | CLAUDE_PROJECT_DIR=. python3 "$STOPHOOK"); rc=$?

@@ -104,6 +104,30 @@ def target_path(tool_input):
     return tool_input.get("file_path") or tool_input.get("notebook_path")
 
 
+def relativize(path, repo_root):
+    """Project-relative and forward-slashed.
+
+    Callers pass the result through the gate's normalize() so dotted and
+    duplicated separators are collapsed the same way the gate collapses them.
+    There is one normalizer, not a second one here that could drift from it.
+    """
+    try:
+        rel = os.path.relpath(path, repo_root)
+    except ValueError:
+        rel = path                       # different drive on Windows
+    return rel.replace("\\", "/")
+
+
+def deny(reason):
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }))
+
+
 def main():
     try:
         payload = json.load(sys.stdin)
@@ -126,28 +150,53 @@ def main():
         return 0
 
     repo_root = Path(os.environ.get("CLAUDE_PROJECT_DIR") or Path.cwd())
-    try:
-        rel = os.path.relpath(raw_path, repo_root)
-    except ValueError:
-        rel = raw_path  # different drive on Windows; compare as given
-    rel = rel.replace("\\", "/")
+    rel = relativize(raw_path, repo_root)
+
+    # Precedence mirrors the gate's exit codes: task file (4) outranks
+    # protected (2) outranks scope (1). Same order, same reasoning -- the
+    # remediation differs in kind, so the most specific message wins.
+    task_file = os.environ.get("ICM_TASK_FILE")
+    task_rel = (gate.normalize(relativize(task_file, repo_root))
+                if task_file else None)
+
+    if task_rel and gate.normalize(rel) == task_rel:
+        deny(f"'{rel}' is the task file for this session (ICM_TASK_FILE). It "
+             f"declares the scope enforced here, so editing it would let this "
+             f"session widen its own permissions and pass its own audit. "
+             f"Needing scope the task does not grant is a STOP, never an "
+             f"edit: say what you need and why, and let a human amend the "
+             f"task.")
+        return 0
 
     if any(gate.covered_by(rel, entry) for entry in entries):
-        print(json.dumps({
-            "hookSpecificOutput": {
-                "hookEventName": "PreToolUse",
-                "permissionDecision": "deny",
-                "permissionDecisionReason": (
-                    f"'{rel}' is a protected governing file "
-                    f"({config_label()}). Governing files are "
-                    f"read-only for agent tooling: inspect them, never "
-                    f"edit them. If this file genuinely needs to change, "
-                    f"a human must edit it directly outside this session, "
-                    f"or edit {config_label()} to descope it."
-                ),
-            }
-        }))
+        deny(f"'{rel}' is a protected governing file "
+             f"({config_label()}). Governing files are "
+             f"read-only for agent tooling: inspect them, never "
+             f"edit them. If this file genuinely needs to change, "
+             f"a human must edit it directly outside this session, "
+             f"or edit {config_label()} to descope it.")
         return 0
+
+    # Per-task scope, checked before the write rather than after the session.
+    # Without this the gate still catches an out-of-scope edit, but only at
+    # handoff, once the work is done.
+    if task_file:
+        try:
+            with open(task_file, encoding="utf-8") as handle:
+                task = gate.parse_task_yaml(handle.read())
+        except (OSError, ValueError) as e:
+            print(f"protect_governing_files: ICM_TASK_FILE={task_file} could "
+                  f"not be read ({e}), allowing; SCOPE enforcement is NOT "
+                  f"active for this call", file=sys.stderr)
+            return 0
+        if not gate.match_any(rel, task["allowed_paths"]):
+            allowed = ", ".join(task["allowed_paths"]) or "(none)"
+            deny(f"'{rel}' is outside the scope this task authorizes. "
+                 f"allowed_paths declares: {allowed}. The change surface is "
+                 f"set by the task, not chosen while working: if this file "
+                 f"genuinely has to change, stop and say so rather than "
+                 f"editing it or the task file. Task: {task_rel}.")
+            return 0
 
     return 0
 
